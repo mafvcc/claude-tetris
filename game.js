@@ -27,6 +27,7 @@ const PIECES = [
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
+const MAX_LEVEL = 10;
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
@@ -39,8 +40,13 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const resumeBtn = document.getElementById('resume-btn');
+const restartPauseBtn = document.getElementById('restart-pause-btn');
+const controlsToggleBtn = document.getElementById('controls-toggle-btn');
+const controlsDetail = document.getElementById('controls-detail');
+const startLevelSelect = document.getElementById('start-level-select');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, startLevel, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -93,6 +99,10 @@ function merge() {
         board[current.y + r][current.x + c] = current.shape[r][c];
 }
 
+function levelToInterval(lv) {
+  return Math.max(100, 1000 - (lv - 1) * 90);
+}
+
 function clearLines() {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
@@ -106,8 +116,8 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    level = Math.min(startLevel + Math.floor(lines / 10), MAX_LEVEL);
+    dropInterval = levelToInterval(level);
     updateHUD();
   }
 }
@@ -223,6 +233,7 @@ function endGame() {
   cancelAnimationFrame(animId);
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+  overlay.dataset.mode = 'gameover';
   overlay.classList.remove('hidden');
 }
 
@@ -230,12 +241,14 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    overlay.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
     overlayTitle.textContent = 'PAUSA';
     overlayScore.textContent = '';
+    overlay.dataset.mode = 'pause';
     overlay.classList.remove('hidden');
   }
 }
@@ -260,10 +273,13 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  // Leer nivel inicial desde localStorage (default 1)
+  const savedLevel = parseInt(localStorage.getItem('tetris-start-level'), 10) || 1;
+  startLevel = Math.min(Math.max(savedLevel, 1), MAX_LEVEL);
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = levelToInterval(level);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
@@ -275,7 +291,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -299,7 +315,27 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
+// Botón reiniciar (modo GAME OVER)
 restartBtn.addEventListener('click', init);
+
+// Botones del menú de pausa
+resumeBtn.addEventListener('click', togglePause);
+restartPauseBtn.addEventListener('click', init);
+
+controlsToggleBtn.addEventListener('click', () => {
+  const oculto = controlsDetail.classList.toggle('hidden');
+  controlsToggleBtn.textContent = oculto ? 'Ver controles' : 'Ocultar controles';
+});
+
+// Selector de nivel inicial
+(function initStartLevel() {
+  const saved = localStorage.getItem('tetris-start-level') || '1';
+  startLevelSelect.value = saved;
+})();
+
+startLevelSelect.addEventListener('change', () => {
+  localStorage.setItem('tetris-start-level', startLevelSelect.value);
+});
 
 // ---- Theme toggle ----
 const themeToggle = document.getElementById('theme-toggle');
