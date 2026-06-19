@@ -219,7 +219,7 @@ kbd {
   align-items: center;
 }
 
-#overlay-title {
+.overlay-title {
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 4px;
@@ -248,6 +248,126 @@ kbd {
 
 #restart-btn:hover {
   background: var(--accent-hover);
+}
+
+/* ---- Pause menu ---- */
+.pause-menu {
+  min-width: 200px;
+  gap: 16px;
+}
+
+.pause-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--accent);
+}
+
+.pause-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.pause-buttons button {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  text-align: left;
+}
+
+.pause-buttons button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--btn-text);
+}
+
+#resume-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--btn-text);
+}
+
+#resume-btn:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.pause-controls-list {
+  width: 100%;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.pause-controls-list ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pause-controls-list li {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.start-level-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  width: 100%;
+}
+
+.level-stepper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.level-stepper button {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--text);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.level-stepper button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--btn-text);
+}
+
+#start-level-val {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 24px;
+  text-align: center;
 }
 
 /* ---- Theme Toggle ---- */
