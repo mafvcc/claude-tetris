@@ -217,6 +217,9 @@ kbd {
   flex-direction: column;
   gap: 12px;
   align-items: center;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px 28px;
 }
 
 .overlay-title {
@@ -445,4 +448,145 @@ kbd {
 #skin-select:hover,
 #skin-select:focus {
   border-color: var(--accent);
+}
+
+/* ---- Game stats ---- */
+.game-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.game-stats strong {
+  color: var(--accent);
+}
+
+/* ---- Name input section ---- */
+.name-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-section.hidden {
+  display: none;
+}
+
+.new-record-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #ffd54f;
+  text-shadow: 0 0 10px rgba(255, 213, 79, 0.4);
+}
+
+.name-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+#player-name {
+  background: var(--kbd-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  width: 140px;
+  outline: none;
+  font-family: 'Courier New', Courier, monospace;
+  transition: border-color 0.15s;
+}
+
+#player-name:focus {
+  border-color: var(--accent);
+}
+
+#save-btn {
+  background: var(--accent);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#save-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* ---- Records table ---- */
+.records-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  width: 100%;
+  min-width: 260px;
+}
+
+.records-table th {
+  color: var(--label-color);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.records-table td {
+  padding: 5px 8px;
+  color: var(--text-muted);
+}
+
+.records-table tbody tr + tr td {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.records-table tr.record-highlight td {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.no-records {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* ---- Records section (below game) ---- */
+.records-section {
+  width: 480px;
+}
+
+.records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+#reset-records-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+#reset-records-btn:hover {
+  border-color: var(--overlay-title);
+  color: var(--overlay-title);
 }

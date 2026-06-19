@@ -130,7 +130,13 @@ const linesEl = document.getElementById('lines');
 const levelEl = document.getElementById('level');
 const pauseOverlay = document.getElementById('pause-overlay');
 const gameOverOverlay = document.getElementById('game-over-overlay');
-const overlayScore = document.getElementById('overlay-score');
+const gameStatsEl = document.getElementById('game-stats');
+const nameSectionEl = document.getElementById('name-section');
+const playerNameEl = document.getElementById('player-name');
+const saveBtnEl = document.getElementById('save-btn');
+const overlayRecordsEl = document.getElementById('overlay-records');
+const mainRecordsEl = document.getElementById('main-records');
+const resetRecordsBtnEl = document.getElementById('reset-records-btn');
 const restartBtn = document.getElementById('restart-btn');
 const resumeBtn = document.getElementById('resume-btn');
 const restartPauseBtn = document.getElementById('restart-pause-btn');
@@ -143,6 +149,7 @@ const levelIncBtn = document.getElementById('level-inc-btn');
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 let currentSkin = SKINS.retro;
 let startLevel = 1;
+let combo, maxCombo, bestLines;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -206,11 +213,16 @@ function clearLines() {
     }
   }
   if (cleared) {
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+    if (cleared > bestLines) bestLines = cleared;
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
+  } else {
+    combo = 0;
   }
 }
 
@@ -284,19 +296,16 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
 
-  // board
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
       drawBlock(ctx, c, r, board[r][c], BLOCK);
 
-  // ghost
   const gy = ghostY();
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
         drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
 
-  // current piece
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
@@ -313,11 +322,84 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+// ---- Records ----
+const RECORDS_KEY = 'tetris-records';
+const MAX_RECORDS = 5;
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(RECORDS_KEY)) || []; }
+  catch { return []; }
+}
+
+function isNewRecord(sc) {
+  const r = loadRecords();
+  return r.length < MAX_RECORDS || sc > r[r.length - 1].score;
+}
+
+function addRecord(name, sc, ln, mc, bl) {
+  const records = loadRecords();
+  const trimmedName = name.trim() || 'AAA';
+  records.push({ name: trimmedName, score: sc, lines: ln, maxCombo: mc, bestLines: bl });
+  records.sort((a, b) => b.score - a.score);
+  const top = records.slice(0, MAX_RECORDS);
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(top));
+  return top.findIndex(r => r.name === trimmedName && r.score === sc && r.lines === ln);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function recordsHTML(records, highlightIdx) {
+  if (!records.length) return '<p class="no-records">Sin récords aún</p>';
+  let h = `<table class="records-table">
+    <thead><tr><th>#</th><th>Jugador</th><th>Score</th><th>L</th><th>C/M</th></tr></thead><tbody>`;
+  records.forEach((r, i) => {
+    h += `<tr${i === highlightIdx ? ' class="record-highlight"' : ''}>
+      <td>${i + 1}</td>
+      <td>${escHtml(r.name)}</td>
+      <td>${r.score.toLocaleString()}</td>
+      <td>${r.lines}</td>
+      <td>${r.maxCombo}x/${r.bestLines}L</td>
+    </tr>`;
+  });
+  return h + '</tbody></table>';
+}
+
+function renderMainRecords() {
+  mainRecordsEl.innerHTML = recordsHTML(loadRecords());
+}
+
+function renderOverlayRecords(highlightIdx) {
+  overlayRecordsEl.innerHTML = recordsHTML(loadRecords(), highlightIdx);
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
-  gameOverOverlay.classList.remove('hidden');
+  gameStatsEl.innerHTML = `
+    <span>Puntuación: <strong>${score.toLocaleString()}</strong></span>
+    <span>Líneas: <strong>${lines}</strong> &nbsp; Nivel: <strong>${level}</strong></span>
+    <span>Combo máx: <strong>${maxCombo}x</strong> &nbsp; Mejor clear: <strong>${bestLines}L</strong></span>
+  `;
+  if (isNewRecord(score)) {
+    nameSectionEl.classList.remove('hidden');
+    playerNameEl.value = '';
+    renderOverlayRecords();
+    gameOverOverlay.classList.remove('hidden');
+    setTimeout(() => playerNameEl.focus(), 50);
+  } else {
+    nameSectionEl.classList.add('hidden');
+    renderOverlayRecords();
+    gameOverOverlay.classList.remove('hidden');
+  }
+}
+
+function saveCurrentRecord() {
+  const idx = addRecord(playerNameEl.value, score, lines, maxCombo, bestLines);
+  nameSectionEl.classList.add('hidden');
+  renderOverlayRecords(idx);
+  renderMainRecords();
 }
 
 function togglePause() {
@@ -356,6 +438,9 @@ function init() {
   score = 0;
   lines = 0;
   level = startLevel;
+  combo = 0;
+  maxCombo = 0;
+  bestLines = 0;
   paused = false;
   gameOver = false;
   dropInterval = Math.max(100, 1000 - (startLevel - 1) * 90);
@@ -434,6 +519,19 @@ function applySkin(skinId) {
 
 skinSelect.addEventListener('change', () => applySkin(skinSelect.value));
 
+saveBtnEl.addEventListener('click', saveCurrentRecord);
+playerNameEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveCurrentRecord();
+});
+
+resetRecordsBtnEl.addEventListener('click', () => {
+  if (confirm('¿Resetear todos los récords?')) {
+    localStorage.removeItem(RECORDS_KEY);
+    renderMainRecords();
+    if (gameOver) renderOverlayRecords();
+  }
+});
+
 // ---- Theme toggle ----
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -465,4 +563,5 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e 
   }
 });
 
+renderMainRecords();
 init();

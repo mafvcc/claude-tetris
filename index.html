@@ -62,6 +62,14 @@
       </aside>
     </div>
 
+    <div class="records-section">
+      <div class="records-header">
+        <span class="label">HIGH SCORES</span>
+        <button id="reset-records-btn">Reset</button>
+      </div>
+      <div id="main-records"></div>
+    </div>
+
     <div id="pause-overlay" class="overlay hidden">
       <div class="overlay-box pause-menu">
         <p class="pause-title">PAUSA</p>
@@ -93,7 +101,15 @@
     <div id="game-over-overlay" class="overlay hidden">
       <div class="overlay-box">
         <p class="overlay-title">GAME OVER</p>
-        <p id="overlay-score"></p>
+        <div id="game-stats" class="game-stats"></div>
+        <div id="name-section" class="name-section hidden">
+          <p class="new-record-label">¡NUEVO RÉCORD!</p>
+          <div class="name-input-row">
+            <input id="player-name" type="text" placeholder="Tu nombre" maxlength="12" autocomplete="off" />
+            <button id="save-btn">OK</button>
+          </div>
+        </div>
+        <div id="overlay-records"></div>
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
