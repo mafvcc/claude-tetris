@@ -27,6 +27,10 @@ const PIECES = [
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
+const MAX_RECORDS = 5;
+const LS_HIGHSCORES = 'tetris-highscores';
+const LS_BEST_COMBO = 'tetris-best-combo';
+const LS_MAX_LINES  = 'tetris-max-lines';
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
@@ -38,9 +42,90 @@ const levelEl = document.getElementById('level');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
+const overlayExtras = document.getElementById('overlay-extras');
+const overlayHighscores = document.getElementById('overlay-highscores');
+const overlayNameForm = document.getElementById('overlay-name-form');
+const overlayNameInput = document.getElementById('overlay-name-input');
+const overlaySaveBtn = document.getElementById('overlay-save-btn');
 const restartBtn = document.getElementById('restart-btn');
+const resetRecordsBtn = document.getElementById('reset-records-btn');
 
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, paused, gameOver,
+    lastTime, dropAccum, dropInterval, animId,
+    comboStreak, bestComboThisGame;
+let gameStarted = false;
+
+// ---- Persistencia de records ----
+
+function loadHighscores() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_HIGHSCORES)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveHighscores(list) {
+  localStorage.setItem(LS_HIGHSCORES, JSON.stringify(list));
+}
+
+function loadBestCombo() {
+  return parseInt(localStorage.getItem(LS_BEST_COMBO), 10) || 0;
+}
+
+function loadMaxLines() {
+  return parseInt(localStorage.getItem(LS_MAX_LINES), 10) || 0;
+}
+
+/** Añade la entrada al ranking y devuelve el índice donde quedó (-1 si no entró). */
+function addToHighscores(entry) {
+  const list = loadHighscores();
+  list.push(entry);
+  list.sort((a, b) => b.score - a.score);
+  const trimmed = list.slice(0, MAX_RECORDS);
+  saveHighscores(trimmed);
+  return trimmed.findIndex(r => r === entry);
+}
+
+function resetRecords() {
+  localStorage.removeItem(LS_HIGHSCORES);
+  localStorage.removeItem(LS_BEST_COMBO);
+  localStorage.removeItem(LS_MAX_LINES);
+}
+
+// ---- Renderizado de tabla de records ----
+
+function renderHighscoresTable(highlightIndex) {
+  const list = loadHighscores();
+  if (!list.length) {
+    return '<p class="hs-empty">No hay records aún</p>';
+  }
+  let html = '<table class="hs-table"><thead><tr>'
+    + '<th>#</th><th>Nombre</th><th>Puntos</th><th>Líneas</th><th>Combo</th>'
+    + '</tr></thead><tbody>';
+  list.forEach((r, i) => {
+    const cls = (i === highlightIndex) ? ' class="hs-highlight"' : '';
+    html += `<tr${cls}>`
+      + `<td>${i + 1}</td>`
+      + `<td>${escapeHtml(r.name)}</td>`
+      + `<td>${r.score.toLocaleString()}</td>`
+      + `<td>${r.lines}</td>`
+      + `<td>${r.combo}x</td>`
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ---- Board / piezas ----
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -108,8 +193,12 @@ function clearLines() {
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    // Tracking de combo
+    comboStreak++;
+    if (comboStreak > bestComboThisGame) bestComboThisGame = comboStreak;
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -137,7 +226,9 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  const cleared = clearLines();
+  // Resetear combo si no se limpiaron líneas en esta pieza
+  if (!cleared) comboStreak = 0;
   spawn();
 }
 
@@ -218,16 +309,76 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
-function endGame() {
-  gameOver = true;
-  cancelAnimationFrame(animId);
-  overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+// ---- Overlay helpers ----
+
+function showStartScreen() {
+  overlayTitle.textContent = 'TETRIS';
+  overlayScore.textContent = '';
+  overlayExtras.innerHTML = '';
+  overlayHighscores.innerHTML = renderHighscoresTable(-1);
+  overlayNameForm.classList.add('hidden');
+  // Cambiar texto del botón de reiniciar a "Jugar"
+  restartBtn.textContent = 'Jugar';
   overlay.classList.remove('hidden');
 }
 
+// ---- Game over ----
+
+function endGame() {
+  gameOver = true;
+  cancelAnimationFrame(animId);
+
+  // Actualizar records globales de combo y líneas
+  const prevBestCombo = loadBestCombo();
+  const prevMaxLines  = loadMaxLines();
+  if (bestComboThisGame > prevBestCombo) {
+    try { localStorage.setItem(LS_BEST_COMBO, bestComboThisGame); } catch (e) {}
+  }
+  if (lines > prevMaxLines) {
+    try { localStorage.setItem(LS_MAX_LINES, lines); } catch (e) {}
+  }
+
+  const extrasHtml = `<p class="overlay-stats">Combo máx: ${bestComboThisGame}x &nbsp;|&nbsp; Líneas: ${lines}</p>`;
+
+  // Comprobar si entra al top 5
+  const list = loadHighscores();
+  const qualifies = list.length < MAX_RECORDS || score >= (list[MAX_RECORDS - 1]?.score ?? 0);
+
+  if (qualifies) {
+    // Guardar la entrada al pulsar el botón
+    overlayNameInput.value = '';
+    overlayTitle.textContent = 'GAME OVER';
+    overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+    overlayExtras.innerHTML = extrasHtml + '<p class="hs-new-record">¡Nuevo record! Ingresa tu nombre:</p>';
+    overlayHighscores.innerHTML = renderHighscoresTable(-1);
+    overlayNameForm.classList.remove('hidden');
+    restartBtn.textContent = 'Reiniciar';
+    overlay.classList.remove('hidden');
+    overlayNameInput.focus();
+
+    // El guardado ocurre en el listener de overlaySaveBtn
+    overlaySaveBtn.onclick = function () {
+      const name = overlayNameInput.value.trim() || 'Anónimo';
+      const entry = { name, score, lines, combo: bestComboThisGame };
+      const idx = addToHighscores(entry);
+      // Actualizar combo/líneas globales si corresponde (ya actualizados arriba)
+      overlayExtras.innerHTML = extrasHtml;
+      overlayHighscores.innerHTML = renderHighscoresTable(idx);
+      overlayNameForm.classList.add('hidden');
+    };
+  } else {
+    overlayTitle.textContent = 'GAME OVER';
+    overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
+    overlayExtras.innerHTML = extrasHtml;
+    overlayHighscores.innerHTML = renderHighscoresTable(-1);
+    overlayNameForm.classList.add('hidden');
+    restartBtn.textContent = 'Reiniciar';
+    overlay.classList.remove('hidden');
+  }
+}
+
 function togglePause() {
-  if (gameOver) return;
+  if (!gameStarted || gameOver) return;
   paused = !paused;
   if (!paused) {
     lastTime = performance.now();
@@ -236,6 +387,9 @@ function togglePause() {
     cancelAnimationFrame(animId);
     overlayTitle.textContent = 'PAUSA';
     overlayScore.textContent = '';
+    overlayExtras.innerHTML = '';
+    overlayHighscores.innerHTML = '';
+    overlayNameForm.classList.add('hidden');
     overlay.classList.remove('hidden');
   }
 }
@@ -263,9 +417,12 @@ function init() {
   level = 1;
   paused = false;
   gameOver = false;
+  gameStarted = true;
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
+  comboStreak = 0;
+  bestComboThisGame = 0;
   next = randomPiece();
   spawn();
   updateHUD();
@@ -275,6 +432,7 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (!gameStarted) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -299,7 +457,20 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', () => {
+  // Si estamos en pausa, reanudar en vez de reiniciar
+  if (paused) {
+    togglePause();
+    return;
+  }
+  init();
+});
+
+resetRecordsBtn.addEventListener('click', () => {
+  resetRecords();
+  // Actualizar la tabla en el overlay actual
+  overlayHighscores.innerHTML = renderHighscoresTable(-1);
+});
 
 // ---- Theme toggle ----
 const themeToggle = document.getElementById('theme-toggle');
@@ -332,4 +503,5 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e 
   }
 });
 
-init();
+// Mostrar pantalla de inicio en vez de llamar a init() directamente
+showStartScreen();
