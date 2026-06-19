@@ -301,3 +301,42 @@ kbd {
   font-size: 15px;
   line-height: 1;
 }
+
+/* ---- Barra de controles superiores ---- */
+.controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ---- Selector de skin ---- */
+.skin-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skin-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--label-color);
+  font-weight: 600;
+}
+
+#skin-select {
+  background: var(--kbd-bg);
+  color: var(--text);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, background 0.2s, color 0.2s;
+}
+
+#skin-select:hover,
+#skin-select:focus {
+  border-color: var(--accent);
+}
