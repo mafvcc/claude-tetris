@@ -232,8 +232,9 @@ kbd {
   color: var(--accent);
 }
 
-#restart-btn {
-  margin-top: 8px;
+/* ---- Botones del overlay ---- */
+.overlay-btn {
+  margin-top: 4px;
   background: var(--accent);
   color: var(--btn-text);
   border: none;
@@ -244,10 +245,116 @@ kbd {
   cursor: pointer;
   letter-spacing: 1px;
   transition: background 0.15s;
+  width: 100%;
 }
 
-#restart-btn:hover {
+.overlay-btn:hover {
   background: var(--accent-hover);
+}
+
+.overlay-btn--secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+
+.overlay-btn--secondary:hover {
+  background: var(--accent);
+  color: var(--btn-text);
+}
+
+.overlay-btn--ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-weight: 400;
+  font-size: 12px;
+  padding: 6px 16px;
+}
+
+.overlay-btn--ghost:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+  background: transparent;
+}
+
+/* Alias para compatibilidad (restart-btn usa overlay-btn) */
+#restart-btn {
+  margin-top: 8px;
+}
+
+/* ---- Menú de pausa ---- */
+.pause-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 200px;
+}
+
+/* Visibilidad según data-mode */
+#overlay[data-mode="gameover"] .pause-menu {
+  display: none;
+}
+
+#overlay[data-mode="pause"] #restart-btn,
+#overlay[data-mode="pause"] #overlay-score {
+  display: none;
+}
+
+/* Sub-sección de controles dentro del menú de pausa */
+.controls-detail {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.controls-detail.hidden {
+  display: none;
+}
+
+.controls-detail ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.controls-detail li {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Selector de nivel inicial */
+.level-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.level-selector select {
+  background: var(--panel-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.level-selector select:focus,
+.level-selector select:hover {
+  border-color: var(--accent);
 }
 
 /* ---- Theme Toggle ---- */
