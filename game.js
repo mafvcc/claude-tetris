@@ -37,10 +37,17 @@ const linesEl = document.getElementById('lines');
 const levelEl = document.getElementById('level');
 const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
-const overlayScore = document.getElementById('overlay-score');
+const gameStatsEl = document.getElementById('game-stats');
+const nameSectionEl = document.getElementById('name-section');
+const playerNameEl = document.getElementById('player-name');
+const saveBtnEl = document.getElementById('save-btn');
+const overlayRecordsEl = document.getElementById('overlay-records');
+const mainRecordsEl = document.getElementById('main-records');
+const resetRecordsBtnEl = document.getElementById('reset-records-btn');
 const restartBtn = document.getElementById('restart-btn');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let combo, maxCombo, bestLines;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -104,11 +111,16 @@ function clearLines() {
     }
   }
   if (cleared) {
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+    if (cleared > bestLines) bestLines = cleared;
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
+  } else {
+    combo = 0;
   }
 }
 
@@ -162,7 +174,6 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.globalAlpha = alpha ?? 1;
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
   context.fillStyle = 'rgba(255,255,255,0.12)';
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   context.globalAlpha = 1;
@@ -189,19 +200,16 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
 
-  // board
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++)
       drawBlock(ctx, c, r, board[r][c], BLOCK);
 
-  // ghost
   const gy = ghostY();
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
         drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
 
-  // current piece
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
@@ -218,12 +226,85 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+// ---- Records ----
+const RECORDS_KEY = 'tetris-records';
+const MAX_RECORDS = 5;
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(RECORDS_KEY)) || []; }
+  catch { return []; }
+}
+
+function isNewRecord(sc) {
+  const r = loadRecords();
+  return r.length < MAX_RECORDS || sc > r[r.length - 1].score;
+}
+
+function addRecord(name, sc, ln, mc, bl) {
+  const records = loadRecords();
+  const trimmedName = name.trim() || 'AAA';
+  records.push({ name: trimmedName, score: sc, lines: ln, maxCombo: mc, bestLines: bl });
+  records.sort((a, b) => b.score - a.score);
+  const top = records.slice(0, MAX_RECORDS);
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(top));
+  return top.findIndex(r => r.name === trimmedName && r.score === sc && r.lines === ln);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function recordsHTML(records, highlightIdx) {
+  if (!records.length) return '<p class="no-records">Sin récords aún</p>';
+  let h = `<table class="records-table">
+    <thead><tr><th>#</th><th>Jugador</th><th>Score</th><th>L</th><th>C/M</th></tr></thead><tbody>`;
+  records.forEach((r, i) => {
+    h += `<tr${i === highlightIdx ? ' class="record-highlight"' : ''}>
+      <td>${i + 1}</td>
+      <td>${escHtml(r.name)}</td>
+      <td>${r.score.toLocaleString()}</td>
+      <td>${r.lines}</td>
+      <td>${r.maxCombo}x/${r.bestLines}L</td>
+    </tr>`;
+  });
+  return h + '</tbody></table>';
+}
+
+function renderMainRecords() {
+  mainRecordsEl.innerHTML = recordsHTML(loadRecords());
+}
+
+function renderOverlayRecords(highlightIdx) {
+  overlayRecordsEl.innerHTML = recordsHTML(loadRecords(), highlightIdx);
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
   overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
-  overlay.classList.remove('hidden');
+  gameStatsEl.innerHTML = `
+    <span>Puntuación: <strong>${score.toLocaleString()}</strong></span>
+    <span>Líneas: <strong>${lines}</strong> &nbsp; Nivel: <strong>${level}</strong></span>
+    <span>Combo máx: <strong>${maxCombo}x</strong> &nbsp; Mejor clear: <strong>${bestLines}L</strong></span>
+  `;
+  if (isNewRecord(score)) {
+    nameSectionEl.classList.remove('hidden');
+    playerNameEl.value = '';
+    renderOverlayRecords();
+    overlay.classList.remove('hidden');
+    setTimeout(() => playerNameEl.focus(), 50);
+  } else {
+    nameSectionEl.classList.add('hidden');
+    renderOverlayRecords();
+    overlay.classList.remove('hidden');
+  }
+}
+
+function saveCurrentRecord() {
+  const idx = addRecord(playerNameEl.value, score, lines, maxCombo, bestLines);
+  nameSectionEl.classList.add('hidden');
+  renderOverlayRecords(idx);
+  renderMainRecords();
 }
 
 function togglePause() {
@@ -231,11 +312,14 @@ function togglePause() {
   paused = !paused;
   if (!paused) {
     lastTime = performance.now();
+    overlay.classList.add('hidden');
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
     overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
+    gameStatsEl.innerHTML = '';
+    nameSectionEl.classList.add('hidden');
+    overlayRecordsEl.innerHTML = '';
     overlay.classList.remove('hidden');
   }
 }
@@ -261,6 +345,9 @@ function init() {
   score = 0;
   lines = 0;
   level = 1;
+  combo = 0;
+  maxCombo = 0;
+  bestLines = 0;
   paused = false;
   gameOver = false;
   dropInterval = 1000;
@@ -301,6 +388,19 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
+saveBtnEl.addEventListener('click', saveCurrentRecord);
+playerNameEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveCurrentRecord();
+});
+
+resetRecordsBtnEl.addEventListener('click', () => {
+  if (confirm('¿Resetear todos los récords?')) {
+    localStorage.removeItem(RECORDS_KEY);
+    renderMainRecords();
+    if (gameOver) renderOverlayRecords();
+  }
+});
+
 // ---- Theme toggle ----
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -332,4 +432,5 @@ window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e 
   }
 });
 
+renderMainRecords();
 init();
